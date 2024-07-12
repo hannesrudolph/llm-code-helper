@@ -5,7 +5,7 @@ from flask import Flask, request, render_template_string, session, jsonify
 from flask_session import Session
 
 PROMPT = """
-Context: I am working on a existing code that I need to be modified.
+Context: I am working on an existing code that I need to be modified.
 I will provide line numbers for each line of code. You can provide changes in the following format:
 
 ```
