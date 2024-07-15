@@ -1,7 +1,6 @@
 import json
 
 from flask import Flask, request, render_template_string, session, jsonify
-
 from flask_session import Session
 
 PROMPT = """
@@ -311,12 +310,12 @@ def process_changes():
     processed_code = '\n'.join(lines)
     session['last_code'] = processed_code  # Update the stored code with the processed version
 
-    # Format the processed code with line numbers
+    # Format the processed code with line numbers for display purposes only
     max_line_num_width = len(str(len(lines)))
     formatted_processed_code = '\n'.join(
         f"{str(i + 1).rjust(max_line_num_width)}. {line}" for i, line in enumerate(lines))
 
-    return jsonify({'processed_code': formatted_processed_code, 'changes_made': len(changes)})
+    return jsonify({'processed_code': processed_code, 'formatted_processed_code': formatted_processed_code, 'changes_made': len(changes)})
 
 
 if __name__ == '__main__':
