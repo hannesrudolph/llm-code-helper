@@ -25,6 +25,22 @@ HTML = '''
             --button-bg: #646cff;
             --button-hover: #535bf2;
             --status-bg: #2a2a2a;
+
+            .form-controls {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+            }
+
+            .form-controls .left {
+                flex-grow: 1;
+            }
+
+            .form-controls .right {
+                display: flex;
+                align-items: center;
+            }
         }
 
         .switch {
@@ -32,6 +48,7 @@ HTML = '''
             display: inline-block;
             width: 34px;
             height: 20px;
+            margin-left: 10px;
         }
 
         .switch input {
@@ -144,16 +161,30 @@ HTML = '''
     <h2>Format Code</h2>
     <form id="format-form">
         <textarea id="code-input" name="code" placeholder="Paste your code here"></textarea>
-        <button type="submit">Format Code</button>
-        <label for="auto-clear-format">Auto Clear:</label> <label class="switch"><input type="checkbox" id="auto-clear-format" name="auto-clear-format"><span class="slider round"></span></label><br>
+        <div class="form-controls">
+            <div class="left">
+                <button type="submit">Format Code</button>
+            </div>
+            <div class="right">
+                <label for="auto-clear-format">Auto Clear: </label> 
+                <label class="switch"><input type="checkbox" id="auto-clear-format" name="auto-clear-format"><span class="slider round"></span></label>
+            </div>
+        </div>
     </form>
     <div id="formatted-code"></div>
 
     <h2>Process Changes</h2>
     <form id="process-form">
         <textarea id="changes-input" name="changes" placeholder="Paste your LLM provided JSON changes here"></textarea>
-        <button type="submit">Process Changes</button>
-        <label for="auto-clear-process">Auto Clear:</label> <label class="switch"><input type="checkbox" id="auto-clear-process" name="auto-clear-process"><span class="slider round"></span></label><br>
+        <div class="form-controls">
+            <div class="left">
+                <button type="submit">Process Changes</button>
+            </div>
+            <div class="right">
+                <label for="auto-clear-process">Auto Clear:</label> 
+                <label class="switch"><input type="checkbox" id="auto-clear-process" name="auto-clear-process"><span class="slider round"></span></label>
+            </div>
+        </div>
     </form>
     <div id="processed-code"></div>
 
