@@ -28,7 +28,7 @@ LLM Code Helper is a utility designed to facilitate interaction with a Language 
 Here is a LLM prompt I start with. Change the initial `Context:` instructions to suit your situation.
 
 ````
-Context: I am working on a WordPress plugin using PHP 8.2.
+Context: I am working on existing code that I need to be modified. I will provide line numbers for each line of code. Use the line numbers as refences but ignore them otherwise. 
 
 ```
 Please provide your suggested code changes in the following JSON format:
@@ -38,17 +38,20 @@ Please provide your suggested code changes in the following JSON format:
   {
     "type": "remove",
     "lines": "LINE_NUMBERS",
-    "text": ""
+    "text": "",
+    "first_original_line": "FIRST_LINE_OF_ORIGINAL_TEXT_TO_BE_REMOVED"
   },
   {
     "type": "insertafter",
     "lines": "LINE_NUMBER",
-    "text": "CODE_TO_INSERT"
+    "text": "CODE_TO_INSERT",
+    "first_original_line": "ORIGINAL_TEXT_AFTER_WHICH_CODE_SHOULD_BE_INSERTED"
   },
   {
     "type": "replace",
     "lines": "LINE_NUMBERS",
-    "text": "REPLACEMENT_CODE"
+    "text": "REPLACEMENT_CODE",
+    "first_original_line": "FIRST_LINE_OF_ORIGINAL_TEXT_TO_BE_REPLACED"
   }
 ]
 ```
@@ -65,6 +68,16 @@ Please provide your suggested code changes in the following JSON format:
     * For `"remove"` and `"replace"`, this can be a single line number (e.g., `"15"`) or a range of lines (e.g., `"10-20"`).
     * For `"insertafter"`, this should be the line number after which the new code should be inserted.
   * **text:** A string containing the code to be inserted or used as a replacement. For `"remove"` changes, this should be an empty string (`""`).
+  * **first_original_line:** Just the first line of the original code that is being modified. This is used to verify the original text before making changes.
+    * For `"remove"`, this is the first line of the text being removed.
+    * For `"insertafter"`, this is the line that will be above the inserted line.
+    * For `"replace"`, this is the first line of the text being replaced.
+
+**Important Points to Prevent Off-by-One Errors:**
+
+1. **Context Awareness:** Ensure that the `first_original_line` provided in the JSON matches exactly with the first line of the code to be removed, inserted after, or replaced. This line is crucial for accurately locating the position for changes.
+2. **Line Number Calculation:** Verify that the line numbers specified in the `lines` field are correct and correspond to the actual lines in the original code.
+3. **Review Before Applying:** Before applying the changes, review the JSON output to confirm that the line numbers and the `first_original_line` values match your expectations. This will help catch any off-by-one errors before they are introduced.
 
 **Example:**
 
@@ -73,17 +86,20 @@ Please provide your suggested code changes in the following JSON format:
   {
     "type": "remove",
     "lines": "13",
-    "text": ""
+    "text": "",
+    "first_original_line": "    echo 'Line to be removed';"
   },
   {
     "type": "insertafter",
     "lines": "25",
-    "text": "console.log('This is the inserted code.');"
+    "text": "    echo 'Inserted line of code';",
+    "first_original_line": "    echo 'Line above inserted code';"
   },
   {
     "type": "replace",
     "lines": "30-32",
-    "text": "// This is the replacement code."
+    "text": "    function new_function() {\n        return 'New function';\n    }",
+    "first_original_line": "    function old_function() {"
   }
 ]
 ```
@@ -93,6 +109,7 @@ Please provide your suggested code changes in the following JSON format:
 * **Structured Data:** This JSON format provides a clear and structured way to represent code changes, making it easier to parse and apply them programmatically using the `process-changes` endpoint.
 * **Reduced Ambiguity:** The specific format reduces ambiguity and ensures that the AI assistant's instructions are interpreted correctly.
 * **Improved Efficiency:** By providing instructions in this format, you can streamline the process of applying code changes and avoid the need for manual interpretation or rewriting.
+* **Verification:** The inclusion of the original text allows for verification before making changes, reducing the risk of unintended modifications.
 
 If you understand my instructions and the context, please indicate it with a one-sentence response.
 ````
