@@ -3,89 +3,6 @@ import json
 from flask import Flask, request, render_template_string, session, jsonify
 from flask_session import Session
 
-PROMPT = """
-Context: I am working on a existing code that I need to be modified.
-I will provide line numbers for each line of code. You can provide changes in the following format:
-
-```
-Please provide your suggested code changes in the following JSON format:
-
-```json
-[
-  {
-    "type": "remove",
-    "lines": "LINE_NUMBERS",
-    "text": "",
-    "first_original_line": "FIRST_LINE_OF_ORIGINAL_TEXT_TO_BE_REMOVED"
-  },
-  {
-    "type": "insertafter",
-    "lines": "LINE_NUMBER",
-    "text": "CODE_TO_INSERT",
-    "first_original_line": "ORIGINAL_TEXT_AFTER_WHICH_CODE_SHOULD_BE_INSERTED"
-  },
-  {
-    "type": "replace",
-    "lines": "LINE_NUMBERS",
-    "text": "REPLACEMENT_CODE",
-    "first_original_line": "FIRST_LINE_OF_ORIGINAL_TEXT_TO_BE_REPLACED"
-  }
-]
-```
-
-**Explanation of JSON Format:**
-
-*   **Array of Changes:** The response should be a JSON array, where each element represents a single change to be made to the code.
-*   **Change Object:** Each change object must have the following properties:
-    *   **type:** A string indicating the type of change. It can be one of the following:
-        *   `"remove"`: To delete lines of code.
-        *   `"insertafter"`: To insert code after a specific line.
-        *   `"replace"`: To replace lines of code with new code.
-    *   **lines:** A string specifying the line numbers affected by the change. 
-        *   For `"remove"` and `"replace"`, this can be a single line number (e.g., `"15"`) or a range of lines (e.g., `"10-20"`).
-        *   For `"insertafter"`, this should be the line number after which the new code should be inserted.
-    *   **text:** A string containing the code to be inserted or used as a replacement. For `"remove"` changes, this should be an empty string (`""`).
-    *   **first_original_line:** Just the first line of the original code that is being modified. This is used to verify the original text before making changes.
-    *     for insertafter, this is the line that will be above the inserted line.
-**Example:**
-
-```json
-[
-  {
-    "type": "remove",
-    "lines": "13",
-    "text": "",
-    "first_original_line": "    print('Line to be removed')"
-  },
-  {
-    "type": "insertafter",
-    "lines": "25",
-    "text": "    print('Inserted line of code')",
-    "first_original_line": "    print('Line above inserted code')"
-  },
-  {
-    "type": "replace",
-    "lines": "30-32",
-    "text": "    def new_function():\\n        return 'New function'",
-    "first_original_line": "    def old_function():"
-  }
-]
-```
-
-**Benefits:**
-
-*   **Structured Data:** This JSON format provides a clear and structured way to represent code changes, making it easier to parse and apply them programmatically using the `process-text` API.
-*   **Reduced Ambiguity:** The specific format reduces ambiguity and ensures that the AI assistant's instructions are interpreted correctly.
-*   **Improved Efficiency:** By providing instructions in this format, you can streamline the process of applying code changes and avoid the need for manual interpretation or rewriting. 
-*   **Verification:** The inclusion of the original text allows for verification before making changes, reducing the risk of unintended modifications.
-
-**IMPORTANT**
-Remember to preserve indentation and formatting when providing code changes. Be very careful not to break indentation or introduce syntax errors especially in python code.
-Python code relies heavily on correct indentation to function properly. Make sure none of the changes break the code indentation structure.
-
-Pay VERY close attention to line numbers and significant whitespace in python code. Look closely at the provided line numbers when making changes.
-"""
-
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key_here'
 app.config['SESSION_TYPE'] = 'filesystem'
@@ -109,6 +26,52 @@ HTML = '''
             --button-hover: #535bf2;
             --status-bg: #2a2a2a;
         }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 34px;
+            height: 20px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 12px;
+            width: 12px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--primary-color);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(14px);
+        }
+
 
         body {
             font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -182,6 +145,7 @@ HTML = '''
     <form id="format-form">
         <textarea id="code-input" name="code" placeholder="Paste your code here"></textarea>
         <button type="submit">Format Code</button>
+        <label for="auto-clear-format">Auto Clear:</label> <label class="switch"><input type="checkbox" id="auto-clear-format" name="auto-clear-format"><span class="slider round"></span></label><br>
     </form>
     <div id="formatted-code"></div>
 
@@ -189,6 +153,7 @@ HTML = '''
     <form id="process-form">
         <textarea id="changes-input" name="changes" placeholder="Paste your LLM provided JSON changes here"></textarea>
         <button type="submit">Process Changes</button>
+        <label for="auto-clear-process">Auto Clear:</label> <label class="switch"><input type="checkbox" id="auto-clear-process" name="auto-clear-process"><span class="slider round"></span></label><br>
     </form>
     <div id="processed-code"></div>
 
@@ -220,7 +185,7 @@ HTML = '''
             .then(data => {
                 updateStatus('formatted-code', `Code formatted and copied to clipboard: ${data.lines} lines.`);
                 copyToClipboard(data.formatted_code);
-                document.getElementById('code-input').value = '';
+if (document.getElementById('auto-clear-format').checked) { document.getElementById('code-input').value = ''; }
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -245,7 +210,7 @@ HTML = '''
                 } else {
                     updateStatus('processed-code', `Changes processed and code copied to clipboard: ${data.changes_made} changes made.`);
                     copyToClipboard(data.processed_code);
-                    document.getElementById('changes-input').value = '';
+if (document.getElementById('auto-clear-process').checked) { document.getElementById('changes-input').value = ''; }
                 }
             })
             .catch(error => {
@@ -271,25 +236,39 @@ def format_code():
     lines = code.split('\n')
     # Ensure each line number is padded to the same width
     max_line_num_width = len(str(len(lines)))
-    formatted_code = '\n'.join(f"{str(i + 1).rjust(max_line_num_width)}. {line}" for i, line in enumerate(lines))
+    formatted_code = '\n'.join(
+        f"{str(i + 1).rjust(max_line_num_width)}. {line}" for i, line in enumerate(lines))
     session['last_code'] = code  # Store the original code in the session
     return jsonify({'formatted_code': formatted_code, 'lines': len(lines)})
+
+
+def sort_changes(changes):
+    def change_key(change):
+        start_line = int(change['lines'].split(
+            '-')[0]) if '-' in change['lines'] else int(change['lines'])
+        return start_line
+
+    return sorted(changes, key=change_key)
 
 
 @app.route('/process-changes', methods=['POST'])
 def process_changes():
     data = request.get_json()
     changes = json.loads(data['changes'])
-    original_code = session.get('last_code', '')  # Retrieve the last code from the session
+    # Retrieve the last code from the session
+    original_code = session.get('last_code', '')
 
     if not original_code:
         return jsonify({'error': 'No code to process. Please format code first.'})
 
     lines = original_code.split('\n')
 
-    for change in reversed(changes):
-        start, end = map(int, change['lines'].split('-')) if '-' in change['lines'] else (
-        int(change['lines']), int(change['lines']))
+    # Sort changes from beginning to end of the document
+    sorted_changes = sort_changes(changes)
+
+    for change in reversed(sorted_changes):
+        start, end = map(int, change['lines'].split(
+            '-')) if '-' in change['lines'] else (int(change['lines']), int(change['lines']))
 
         # Adjust for 0-based indexing
         start -= 1
@@ -298,7 +277,19 @@ def process_changes():
         # Verify only the first line of the original text before making changes
         first_original_line = lines[start].strip()
         if change['first_original_line'].strip() != first_original_line:
-            return jsonify({'error': f"Error: Original text mismatch at line {start + 1}. Change not applied."})
+            # Print the lines around the mismatch for debugging
+            context_lines = lines[max(0, start-2):min(len(lines), end+3)]
+            context = '<br>'.join(
+                [f"{i + max(0, start-2) + 1}: {line}" for i, line in enumerate(context_lines)])
+            error_message = (
+                f"<b>Error:</b> Original text mismatch at line {
+                    start + 1}.<br>"
+                f"<b>Expected:</b> '{change['first_original_line'].strip()
+                                     }'<br>"
+                f"<b>Found:</b> '{first_original_line}'<br>"
+                f"<b>Context:</b><br>{context}"
+            )
+            return jsonify({'error': error_message})
 
         if change['type'] == 'remove':
             del lines[start:end + 1]
@@ -308,14 +299,15 @@ def process_changes():
             lines[start:end + 1] = change['text'].split('\n')
 
     processed_code = '\n'.join(lines)
-    session['last_code'] = processed_code  # Update the stored code with the processed version
+    # Update the stored code with the processed version
+    session['last_code'] = processed_code
 
     # Format the processed code with line numbers for display purposes only
     max_line_num_width = len(str(len(lines)))
     formatted_processed_code = '\n'.join(
         f"{str(i + 1).rjust(max_line_num_width)}. {line}" for i, line in enumerate(lines))
 
-    return jsonify({'processed_code': processed_code, 'formatted_processed_code': formatted_processed_code, 'changes_made': len(changes)})
+    return jsonify({'processed_code': processed_code, 'formatted_processed_code': formatted_processed_code, 'changes_made': len(sorted_changes)})
 
 
 if __name__ == '__main__':
